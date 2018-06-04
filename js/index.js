@@ -9,6 +9,8 @@ import CompartmentalizationModel from './compartmentalization_model.js';
 const d3 = require('d3');
 require('./app.css');
 
+
+const datasets = require('../data/datasets.json');
 class App extends Component {
   constructor(props) {
     super(props);
@@ -19,6 +21,7 @@ class App extends Component {
   }
   loadDataset(dataset) {
     d3.json(`/data/${dataset}.json`, (error, json) => {
+      json.dataset = dataset;
       this.setState({json: json});
     });
   }
@@ -26,7 +29,6 @@ class App extends Component {
     this.loadDataset(dataset);
   }
   render(){
-    const datasets = ['Compartmentalized', 'NotCompartmentalized'];
     return (<div>
       <Navbar fixedTop onSelect={key=>this.onSelect(key)}>
         <Navbar.Header>

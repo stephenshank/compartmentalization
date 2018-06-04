@@ -14,21 +14,12 @@ class CompartmentalizationModel extends Component {
     super(props);
     this.state = { cherries: null };
   }
-  componentDidMount() {
-    this.runCompartmentTest();
+  componentWillReceiveProps(nextProps) {
+    this.runCompartmentTest(nextProps);
   }
-  componentDidUpdate() {
-    this.runCompartmentTest();
-  }
-  shouldComponentUpdate(nextProps, nextState) {
-    const different_json = nextProps.json != this.props.json,
-      different_cherries = nextState.cherries != this.state.cherries,
-      should_update = different_json || different_cherries;
-    return should_update;
-  }
-  runCompartmentTest() {
-    if(this.props.json) {
-      const { newick, regexes } = this.props.json,
+  runCompartmentTest(nextProps) {
+    if(nextProps.json) {
+      const { newick, regexes } = nextProps.json,
         tree_svg = d3.select('#tree_display');
       tree_svg.html('');
       var tree = d3.layout.phylotree()
@@ -56,21 +47,55 @@ class CompartmentalizationModel extends Component {
           return regex.test(node.target.name)
         })
       });
-      var cherries = 0;
+      var cherries = 0,
+        cherries11 = 0,
+        cherries12 = 0,
+        cherries22 = 0;
       tree.traverse_and_compute(function(node){
         if(node.parent) {
           const is_unvisited_cherry = _.every(node.parent.children, function(node) {
             return d3.layout.phylotree.is_leafnode(node) && !node.cherry_visit;
           });
+          if(is_unvisited_cherry && node.parent.children.length == 2) {
+            if(node.parent.children[0][regexes[0]] && node.parent.children[1][regexes[0]]) {
+              cherries11++;
+            } else if(node.parent.children[0][regexes[1]] && node.parent.children[1][regexes[1]]) {
+              cherries22++;
+            } else {
+              cherries12++;
+            }
+          } else if (is_unvisited_cherry && node.parent.children.length > 2) {
+            console.log('TRIFURCATING CHERRY!');
+          }
           cherries += is_unvisited_cherry;
         }
         node.cherry_visit = true;
       });
-      this.setState({ cherries: cherries });
+      const E = [
+        [ cherries11/cherries, cherries12/(2*cherries)],
+        [ cherries12/(2*cherries), cherries22/cherries]
+      ],
+        a = [ E[0][0] + E[0][1], E[1][0]+E[1][1] ],
+        b = [ E[0][0] + E[1][0], E[0][1]+E[1][1] ],
+        numerator = E[0][0]+E[1][1]-(a[0]*b[0]+a[1]*b[1]),
+        denominator = 1 - ((a[0]*b[0]+a[1]*b[1])),
+        r = numerator / denominator;
+      this.setState({
+        cherries: cherries,
+        cherries11: cherries11,
+        cherries12: cherries12,
+        cherries22: cherries22,
+        r: r
+      });
     }
   }
   render() {
     return (<Row>
+      <Col xs={12}>
+        <Row>
+          <h3>{this.props.json ? this.props.json.dataset : 'Loading...'}</h3>
+        </Row>
+      </Col>
       <Col xs={8}>
         <svg id="tree_display" width={600} height={600}></svg>          
       </Col>
@@ -88,6 +113,22 @@ class CompartmentalizationModel extends Component {
               <tr>
                 <td><MathJax.Node>{'C'}</MathJax.Node></td>
                 <td><MathJax.Node>{this.state.cherries}</MathJax.Node></td>
+              </tr>
+              <tr>
+                <td><MathJax.Node>{'C_{11}'}</MathJax.Node></td>
+                <td><MathJax.Node>{this.state.cherries11}</MathJax.Node></td>
+              </tr>
+              <tr>
+                <td><MathJax.Node>{'C_{12}'}</MathJax.Node></td>
+                <td><MathJax.Node>{this.state.cherries12}</MathJax.Node></td>
+              </tr>
+              <tr>
+                <td><MathJax.Node>{'C_{22}'}</MathJax.Node></td>
+                <td><MathJax.Node>{this.state.cherries22}</MathJax.Node></td>
+              </tr>
+              <tr>
+                <td><MathJax.Node>{'r'}</MathJax.Node></td>
+                <td><MathJax.Node>{this.state.r}</MathJax.Node></td>
               </tr>
             </tbody>
           </Table>
