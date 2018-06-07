@@ -71,6 +71,24 @@ class CompartmentalizationModel extends Component {
         }
         node.cherry_visit = true;
       });
+
+      const legend = tree_svg.append('g')
+        .attr('transform', 'translate(550, 50)')
+        .selectAll('g')
+        .data(regexes)
+        .enter()
+        .append('g');
+      legend.append('text')
+          .attr('x', 30)
+          .attr('y', (d,i) => 30*i+15)
+          .text(d=>d);
+      legend.append('rect')
+        .attr('x', 0)
+        .attr('y', (d,i) => 30*i)
+        .attr('width', 20)
+        .attr('height', 20)
+        .attr('fill', (d,i) => i == regexes.length-1 ? 'red' : label_to_color(d));
+
       const E = [
         [ cherries11/cherries, cherries12/(2*cherries)],
         [ cherries12/(2*cherries), cherries22/cherries]
@@ -97,7 +115,7 @@ class CompartmentalizationModel extends Component {
         </Row>
       </Col>
       <Col xs={8}>
-        <svg id="tree_display" width={600} height={600}></svg>          
+        <svg id="tree_display" width={600} height={600}></svg>
       </Col>
       <Col xs={4}>
         <p>Assortativity index distribution will go here.</p>
