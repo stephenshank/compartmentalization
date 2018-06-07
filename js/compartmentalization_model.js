@@ -12,7 +12,7 @@ require("phylotree");
 class CompartmentalizationModel extends Component {
   constructor(props) {
     super(props);
-    this.state = { cherries: null };
+    this.state = { r: null };
   }
   componentWillReceiveProps(nextProps) {
     this.runCompartmentTest(nextProps);
@@ -47,30 +47,52 @@ class CompartmentalizationModel extends Component {
           return regex.test(node.target.name)
         })
       });
-      var cherries = 0,
-        cherries11 = 0,
-        cherries12 = 0,
-        cherries22 = 0;
+      var number_of_compartments = regexes.length,
+        cherry_counts = d3.range(number_of_compartments)
+          .map(d=>d3.range(number_of_compartments).map(e=>0)),
+        number_of_cherries = 0,
+        i, j;
       tree.traverse_and_compute(function(node){
         if(node.parent) {
           const is_unvisited_cherry = _.every(node.parent.children, function(node) {
             return d3.layout.phylotree.is_leafnode(node) && !node.cherry_visit;
           });
           if(is_unvisited_cherry && node.parent.children.length == 2) {
-            if(node.parent.children[0][regexes[0]] && node.parent.children[1][regexes[0]]) {
-              cherries11++;
-            } else if(node.parent.children[0][regexes[1]] && node.parent.children[1][regexes[1]]) {
-              cherries22++;
-            } else {
-              cherries12++;
-            }
+            number_of_cherries++;
+            const first_child = node.parent.children[0],
+              second_child = node.parent.children[1];
+            regexes.forEach((d, index) => { 
+              if(first_child[d]) {
+                i = index;
+              }
+              if(second_child[d]) {
+                j = index;
+              }
+            });
+            cherry_counts[i][j] += .5;
+            cherry_counts[j][i] += .5;
           } else if (is_unvisited_cherry && node.parent.children.length > 2) {
             console.log('TRIFURCATING CHERRY!');
           }
-          cherries += is_unvisited_cherry;
         }
         node.cherry_visit = true;
       });
+      
+      var a = d3.range(number_of_compartments).map(d=>0),
+        b = d3.range(number_of_compartments).map(d=>0),
+        sumieii = 0;
+      for(let i=0; i<number_of_compartments; i++) {
+        sumieii += cherry_counts[i][i]/number_of_cherries;
+        for(let j=0; j<number_of_compartments; j++) {
+          a[i] += cherry_counts[i][j]/number_of_cherries;
+          b[j] += cherry_counts[i][j]/number_of_cherries;
+        }
+      }
+      const a_dot_b = a.map((d,i)=>d*b[i]).reduce((a,b)=>a+b,0),
+        numerator = sumieii-a_dot_b,
+        denominator = 1-a_dot_b,
+        r = numerator/denominator;
+      this.setState({r: r});
 
       const legend = tree_svg.append('g')
         .attr('transform', 'translate(550, 50)')
@@ -88,23 +110,6 @@ class CompartmentalizationModel extends Component {
         .attr('width', 20)
         .attr('height', 20)
         .attr('fill', (d,i) => i == regexes.length-1 ? 'red' : label_to_color(d));
-
-      const E = [
-        [ cherries11/cherries, cherries12/(2*cherries)],
-        [ cherries12/(2*cherries), cherries22/cherries]
-      ],
-        a = [ E[0][0] + E[0][1], E[1][0]+E[1][1] ],
-        b = [ E[0][0] + E[1][0], E[0][1]+E[1][1] ],
-        numerator = E[0][0]+E[1][1]-(a[0]*b[0]+a[1]*b[1]),
-        denominator = 1 - ((a[0]*b[0]+a[1]*b[1])),
-        r = numerator / denominator;
-      this.setState({
-        cherries: cherries,
-        cherries11: cherries11,
-        cherries12: cherries12,
-        cherries22: cherries22,
-        r: r
-      });
     }
   }
   render() {
@@ -118,39 +123,10 @@ class CompartmentalizationModel extends Component {
         <svg id="tree_display" width={600} height={600}></svg>
       </Col>
       <Col xs={4}>
-        <p>Assortativity index distribution will go here.</p>
         <MathJax.Context input='tex'>
-          <Table striped hover>
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><MathJax.Node>{'C'}</MathJax.Node></td>
-                <td><MathJax.Node>{this.state.cherries}</MathJax.Node></td>
-              </tr>
-              <tr>
-                <td><MathJax.Node>{'C_{11}'}</MathJax.Node></td>
-                <td><MathJax.Node>{this.state.cherries11}</MathJax.Node></td>
-              </tr>
-              <tr>
-                <td><MathJax.Node>{'C_{12}'}</MathJax.Node></td>
-                <td><MathJax.Node>{this.state.cherries12}</MathJax.Node></td>
-              </tr>
-              <tr>
-                <td><MathJax.Node>{'C_{22}'}</MathJax.Node></td>
-                <td><MathJax.Node>{this.state.cherries22}</MathJax.Node></td>
-              </tr>
-              <tr>
-                <td><MathJax.Node>{'r'}</MathJax.Node></td>
-                <td><MathJax.Node>{this.state.r}</MathJax.Node></td>
-              </tr>
-            </tbody>
-          </Table>
+          <MathJax.Node>{'r='+this.state.r}</MathJax.Node>
         </MathJax.Context>
+        <p>Assortativity index distribution will go here.</p>
       </Col>
     </Row>); 
   }
